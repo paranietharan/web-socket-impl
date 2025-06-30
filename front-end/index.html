@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Application</title>
+    <style>
+        /* General styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .center {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        h3#chat-header {
+            color: #3498db;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        /* Form styles */
+        form {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        input[type="submit"] {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #2980b9;
+        }
+
+        /* Message area styles */
+        .message-area {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: none;
+            margin-bottom: 20px;
+            font-family: inherit;
+            background-color: #f9f9f9;
+        }
+
+        /* Responsive design */
+        @media (max-width: 600px) {
+            .center {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="center">
+        <h1>Chat Application</h1>
+        <h3 id="chat-header">Currently in chat: general</h3>
+
+        <form id="chat-room-selection">
+            <label for="chat-room">Chat Room:</label>
+            <input type="text" id="chat-room" placeholder="Enter chat room name">
+            <br><br>
+            <input type="submit" value="Join Room">
+        </form>
+        <br>
+
+        <textarea class="message-area" id="chat-message" readonly rows="10"
+            placeholder="Welcome to ChatRoom"></textarea>
+
+        <form id="chat-room-message">
+            <label for="message">Message:</label>
+            <input type="text" id="message" placeholder="Type your message here">
+            <br><br>
+            <input type="submit" value="Send Message">
+        </form>
+    </div>
+
+    <script>
+        var selectedChat = "general"
+
+        function changeChatRoom() {
+            var chat = document.getElementById("chatroom")
+            if(newChat != null && newChat.value != selectedChat){
+                console.log(newChat)
+            }
+
+            return false
+        }
+
+        function sendMessage() {
+            var newmessage = document.getElementById("message");
+            if (newmessage != null) {
+                console.log(newmessage);
+            }
+            return false;
+        }
+        
+        window.onload = function () {
+            // Apply our listener functions to the submit event on both forms
+            // we do it this way to avoid redirects
+            document.getElementById("chatroom-selection").onsubmit = changeChatRoom;
+            document.getElementById("chatroom-message").onsubmit = sendMessage;
+
+            // Check if the browser supports WebSocket
+            if (window["WebSocket"]) {
+                console.log("supports websockets");
+                conn = new WebSocket("ws://" + document.location.host + "/ws");
+            } else {
+                alert("Not supporting websockets");
+            }
+        };
+    </script>
+</body>
+
+</html>
