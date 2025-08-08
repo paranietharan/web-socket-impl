@@ -119,6 +119,32 @@
     <script>
         var selectedChat = "general"
 
+        class Event {
+            constructor(type, payload) {
+                this.type = type;
+                this.payload = payload;
+            }
+        }
+
+        function routeEvent(event){
+            if (event.type == undefined) {
+                alert("You must enter a valid event type");
+            }
+
+            switch (event.type) {
+                case "new_message":
+                    console.log("New message");
+                    break;
+                default:
+                    alert("You must enter a valid event type");
+                    break;
+            }
+        }
+
+        function  sendEvent(eventName, payload) {
+            const event = new Event(eventName, payload);
+            conn.send(JSON.stringify(event));
+        }
         function changeChatRoom() {
             var chat = document.getElementById("chat-room")
             if(newChat != null && newChat.value != selectedChat){
@@ -132,7 +158,8 @@
             var newmessage = document.getElementById("message");
             if (newmessage != null) {
                 console.log(newmessage);
-                conn.send(newmessage.value);
+                sendEvent("send_message", newmessage.value);
+                return true;
             }
             return false;
         }
@@ -147,6 +174,14 @@
             if (window["WebSocket"]) {
                 console.log("supports websockets");
                 conn = new WebSocket("ws://" + document.location.host + "/ws");
+
+                conn.onmessage = function (event) {
+                    //console.log(event)
+                    const eventData = JSON.parse(event.data);
+
+                    const evt = Object.assign(new Event, eventData);
+                    routeEvent(evt);
+                }
             } else {
                 alert("Not supporting websockets");
             }
