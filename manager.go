@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,6 +15,10 @@ var (
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
+)
+
+var (
+	ErrEventNotSupported = errors.New("this event type is not supported")
 )
 
 type Manager struct {
@@ -43,7 +48,14 @@ func sendMessage(event Event, c *Client) error {
 }
 
 func (m *Manager) routeEvent(event Event, c *Client) error {
-	//
+	if handler, ok := m.handlers[event.Type]; ok {
+		if err := handler(event, c); err != nil {
+			return err
+		}
+		return nil
+	} else {
+		return ErrEventNotSupported
+	}
 }
 
 func (m *Manager) serverWS(w http.ResponseWriter, r *http.Request) {
