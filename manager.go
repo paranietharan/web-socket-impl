@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -25,14 +28,16 @@ var (
 type Manager struct {
 	clients ClientList
 	sync.RWMutex
+	otps RetentionMap
 
 	handlers map[string]EventHandler
 }
 
-func NewManager() *Manager {
+func NewManager(ctx context.Context) *Manager {
 	m := &Manager{
 		clients:  make(ClientList),
 		handlers: make(map[string]EventHandler),
+		otps:     NewRetentionMap(ctx, 5*time.Second),
 	}
 
 	m.setUpEventHandlers()
@@ -60,6 +65,20 @@ func (m *Manager) routeEvent(event Event, c *Client) error {
 }
 
 func (m *Manager) serverWS(w http.ResponseWriter, r *http.Request) {
+	// Grab the OTP in the Get param
+	otp := r.URL.Query().Get("otp")
+	if otp == "" {
+		// Tell the user its not authorized
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Verify OTP is existing
+	if !m.otps.VerifyOTP(otp) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	log.Println("new Connection")
 
 	// upgrade the regualr http to web socket
@@ -73,6 +92,43 @@ func (m *Manager) serverWS(w http.ResponseWriter, r *http.Request) {
 
 	go client.readMessages()
 	go client.writeMessages()
+}
+
+func (m *Manager) loginHandler(w http.ResponseWriter, r *http.Request) {
+	type userLoginRequest struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	var req userLoginRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	if req.Username == "admin" || req.Password == "admin" {
+		type response struct {
+			OTP string `json:"otp"`
+		}
+
+		otp := m.otps.NewOTP()
+		resp := response{
+			OTP: otp.Key,
+		}
+		data, err := json.Marshal(resp)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return
+	}
+
+	http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 }
 
 func (m *Manager) addClient(client *Client) {
