@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Application</title>
+    <title>Chat Application - Golang implementation</title>
     <style>
         /* General styles */
         body {
@@ -96,6 +96,7 @@
     <div class="center">
         <h1>Chat Application</h1>
         <h3 id="chat-header">Currently in chat: general</h3>
+        <h3 id="connection-header">Connected to Websocket: false</h3>
 
         <form id="chat-room-selection">
             <label for="chat-room">Chat Room:</label>
@@ -114,13 +115,52 @@
             <br><br>
             <input type="submit" value="Send Message">
         </form>
+
+        <div style="border: 3px solid black;margin-top: 30px;">
+            <form id="login-form">
+                <label for="username">username:</label>
+                <input type="text" id="username" name="username"><br>
+                <label for="password">password:</label>
+                <input type="password" id="password" name="password"><br><br>
+                <input type="submit" value="Login">
+            </form>
+        </div>
     </div>
 
     <script>
         var selectedChat = "general"
 
+        class Event {
+            constructor(type, payload) {
+                this.type = type;
+                this.payload = payload;
+            }
+        }
+
+        function routeEvent(event){
+            if (event.type == undefined) {
+                alert("You must enter a valid event type");
+            }
+
+            switch (event.type) {
+                case "new_message":
+                    console.log("New message");
+                    break;
+                case "send_message":
+                    console.log("New message");
+                    break;
+                default:
+                    alert("You must enter a valid event type");
+                    break;
+            }
+        }
+
+        function  sendEvent(eventName, payload) {
+            const event = new Event(eventName, payload);
+            conn.send(JSON.stringify(event));
+        }
         function changeChatRoom() {
-            var chat = document.getElementById("chatroom")
+            var chat = document.getElementById("chat-room")
             if(newChat != null && newChat.value != selectedChat){
                 console.log(newChat)
             }
@@ -132,23 +172,78 @@
             var newmessage = document.getElementById("message");
             if (newmessage != null) {
                 console.log(newmessage);
+                sendEvent("send_message", newmessage.value);
+                newmessage.value = "";
             }
             return false;
         }
-        
+
+        function login() {
+            let formData = {
+                "username": document.getElementById("username").value,
+                "password": document.getElementById("password").value
+            }
+            // Send the request
+            fetch("login", {
+                method: 'post',
+                body: JSON.stringify(formData),
+                mode: 'cors',
+            }).then((response) => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw 'unauthorized';
+                }
+            }).then((data) => {
+                // Now we have a OTP, send a Request to Connect to WebSocket
+                connectWebsocket(data.otp);
+            }).catch((e) => { alert(e) });
+            return false;
+        }
+
+        /**
+         * ConnectWebsocket will connect to websocket and add listeners
+         * */
+        function connectWebsocket(otp) {
+            // Check if the browser supports WebSocket
+            if (window["WebSocket"]) {
+                console.log("supports websockets");
+                // Connect to websocket using OTP as a GET parameter
+                conn = new WebSocket("wss://" + document.location.host + "/ws?otp=" + otp);
+
+                // Onopen
+                conn.onopen = function (evt) {
+                    document.getElementById("connection-header").innerHTML = "Connected to Websocket: true";
+                }
+
+                conn.onclose = function (evt) {
+                    // Set disconnected
+                    document.getElementById("connection-header").innerHTML = "Connected to Websocket: false";
+                }
+
+                // Add a listener to the onmessage event
+                conn.onmessage = function (evt) {
+                    console.log(evt);
+                    // parse websocket message as JSON
+                    const eventData = JSON.parse(evt.data);
+                    // Assign JSON data to new Event Object
+                    const event = Object.assign(new Event, eventData);
+                    // Let router manage message
+                    routeEvent(event);
+                }
+            } else {
+                alert("Not supporting websockets");
+            }
+        }
+
         window.onload = function () {
             // Apply our listener functions to the submit event on both forms
             // we do it this way to avoid redirects
             document.getElementById("chat-room-selection").onsubmit = changeChatRoom;
             document.getElementById("chat-room-message").onsubmit = sendMessage;
-
-            // Check if the browser supports WebSocket
-            if (window["WebSocket"]) {
-                console.log("supports websockets");
-                conn = new WebSocket("ws://" + document.location.host + "/ws");
-            } else {
-                alert("Not supporting websockets");
-            }
+            document.getElementById("login-form").onsubmit = function() {
+                return login(); // prevent default + run login
+            };
         };
     </script>
 </body>
